@@ -33,8 +33,12 @@ var ImgFigure = React.createClass({
 	 * @return {[type]} [description]
 	 */
 	handleClick(e) {
-		this.props.inverse();
-		e.stop.Propagation();
+		if(this.props.arrange.isCenter) {
+			this.props.inverse();
+		} else {
+			this.props.center();
+		}
+		e.stopPropagation();
 		e.preventDefault();
 	},
 	render: function() {
@@ -45,14 +49,19 @@ var ImgFigure = React.createClass({
 		}
 		// 如果图片的旋转角度有值并且不为0，添加旋转角度
 		if(this.props.arrange.rotate) {
-			(['-moz-', '-ms-', '-webkit-', '']).forEach(function(val) {
-				styleObj[val + 'transform'] = 'rotate(' + this.props.arrange.rotate + 'deg)';
+			(['mozTransform', 'msTransform', 'WebkitTransform', 'transform']).forEach(function(val) {
+				styleObj[val] = 'rotate(' + this.props.arrange.rotate + 'deg)';
 			}.bind(this))
 			// 将 imgFigure component对象传进foreach的处理函数，以便可以直接在这个函数里调用this.props.arrange
 			
 		}
+
+		if(this.props.arrange.isCenter) {
+			styleObj.zIndex = 1001;
+		}
+
 		var imgFigureClassName = 'img-figure';
-		imgFigureClassName +=this.props.arrange.isInverse ? 'is-inverse': '';
+		imgFigureClassName +=this.props.arrange.isInverse?' is-inverse': '';
 
 		return (
 			<figure className={imgFigureClassName} style={styleObj} onClick={this.handleClick}>
@@ -67,7 +76,35 @@ var ImgFigure = React.createClass({
 		);
 	}
 });
+var ControllerUnit = React.createClass({
+	handleClick(e) {
+	// 如果点击的是当前正在选中态的按钮，则翻转图片，否则将对应的图片居中
+		if(this.props.arrange.isCenter) {
+			this.props.inverse();
+		} else {
+			this.props.center();
+		}
+		e.stopPropagation();
+		e.preventDefault();
+	},
+	render() {
+		var controllerUnitClassName='controller-unit';
+		// 如果对应的是居中的图片，显示控制按钮的居中态
+		if(this.props.arrange.isCenter) {
+			controllerUnitClassName +=' is-center';
+				// 如果对应的是翻转图片,显示控制按钮的翻转态
+			if (this.props.arrange.isInverse) {
+				controllerUnitClassName += ' is-inverse';
+			}
+		}
+	
+		
 
+		return (
+			<span className={controllerUnitClassName} onClick={this.handleClick}></span>
+		);
+	}
+});
 class AppComponent extends React.Component {
 	Constant = {
 		centerPos: {
@@ -87,13 +124,14 @@ class AppComponent extends React.Component {
 		}
 	};
 
-
-	/**闭包就是能够读取其他函数内部变量的函数, ，在js中 只有函数内部的子函数才能读取函数内部的局部变量，
-	可以简单理解为定义在一个函数内部的函数，所以本质上闭包就是将函数内部与函数外部连接起来的桥梁
-	 * index 输入当前被执行inverse操作的图片对应的信息数组的index值
-	 * rerurn {function}一个闭包函数，其内return一个真正被执行的函数
+	/**
+	 * (闭包就是能够读取其他函数内部变量的函数, 在js中 只有函数内部的子函数才能读取函数内部的局部变量，
+	闭包可以简单理解为定义在一个函数内部的函数，所以本质上闭包就是将函数内部与函数外部连接起来的桥梁)
+	******************************************************************
+	 * index: 当前被执行inverse操作的图片对应的信息数组的index值
+	 * return {function}是一个闭包函数，return一个真正被执行的函数
 	 */
-	inverse() {
+	inverse(index) {
 		return function() {
 			var imgsArrangeArr = this.state.imgsArrangeArr;
 			imgsArrangeArr[index].isInverse = !imgsArrangeArr[index].isInverse;
@@ -114,15 +152,16 @@ class AppComponent extends React.Component {
 		hPosRangeY = hPosRange.y,
 		vPosRangeTopY = vPosRange.topY,
 		vPosRangeX = vPosRange.x,
-
 		imgsArrangeTopArr = [],
-		topImgNum = Math.ceil(Math.random()*2), // 取一个或者不取
+		topImgNum = Math.floor(Math.random()*2), // 取一个或者不取
 		topImgSpliceIndex = 0,
 		imgsArrangeCenterArr = imgsArrangeArr.splice(centerIndex, 1);
-		// 首先居中centerIndex的图片
-		imgsArrangeCenterArr[0].pos = centerPos;
-		// 居中的cneterIndex的图片不需要旋转
-		imgsArrangeCenterArr[0].rotate = 0;
+		// 首先居中centerIndex的图片// 居中的cneterIndex的图片不需要旋转
+		imgsArrangeCenterArr[0] = {
+			pos: centerPos,
+			rotate: 0,
+			isCenter: true
+		}
 		// 取出要布局上侧的图片的状态信息, 向下取整，避免溢出
 		topImgSpliceIndex = Math.ceil(Math.random()*(imgsArrangeArr.length - topImgNum));
 		imgsArrangeTopArr = imgsArrangeArr.splice(topImgSpliceIndex, topImgNum);
@@ -133,8 +172,8 @@ class AppComponent extends React.Component {
 					top: getRangeRandom(vPosRangeTopY[0], vPosRangeTopY[1]),
 					left: getRangeRandom(vPosRangeX[0], vPosRangeX[1])
 				},
-				rotate: get30DegRandom()
-				
+				rotate: get30DegRandom(),
+				isCenter: false
 			}
 		});
 		// 布局左右两侧的图片
@@ -152,7 +191,8 @@ class AppComponent extends React.Component {
 					top: getRangeRandom(hPosRangeY[0], hPosRangeY[1]),
 					left: getRangeRandom(hPosRangeLORX[0], hPosRangeLORX[1])
 				},
-				rotate: get30DegRandom()
+				rotate: get30DegRandom(),
+				isCenter: false
 				
 			};
 		}
@@ -167,22 +207,35 @@ class AppComponent extends React.Component {
 		});
 		// 随意布局的值已经生成好了，现在就是要使用这些值
 	}
+	/**
+	 * 利用rearrange函数，居中对应的idnex的图片
+	 * @param index 需要被居中的图片对应的图片信息数组的index值
+	 */
+	center(index) {
+		return function() {
+			this.rearrange(index);
+		}.bind(this);
+	}
+
 	constructor(props) {
 		super(props);
 		this.state ={imgsArrangeArr: []}
 	}
-	// getInitialState: function() {
-	// 	return {
-	// 		imgsArrangeArr: [
-	// // 		// {
-	// // 			// pos: {
-	// // 			// 	left: '0',
-	// // 			// 	top: '0'
-	// // 			// }
-	// // 		// }
-	// 		]
-	// 	};
-	// }
+	/* getInitialState: function() {
+	 	return {
+	 		imgsArrangeArr: [
+	  		 {
+	  			 pos: {
+	  			 	left: '0',
+	  			 	top: '0'
+	  			 },
+	 					rotate: 0, 旋转角度
+	 					isInverse: false,  图片正反面
+	 					inCenter: false 图片是否居中
+	  		 }
+	 		]
+	 	};
+	 }**/
 	
 	// 组件加载以后，为每张图片计算其位置的范围
 	componentDidMount() {
@@ -220,10 +273,8 @@ class AppComponent extends React.Component {
 
 		this.rearrange(0);
 	}
-
-  render() {
-
-  	var controllerUnits = [], imgFigures = [];
+  	render() {
+  		var controllerUnits = [], imgFigures = [];
 		imageDatas.forEach(function(val, index) {
 			if(!this.state.imgsArrangeArr[index]) {
 				this.state.imgsArrangeArr[index] = {
@@ -231,12 +282,16 @@ class AppComponent extends React.Component {
 						left: 0,
 						top: 0
 					},
-					rotate: 0
+					rotate: 0,
+					isInverse: false,
+					isCenter: false
 				}
 			}
-
-			imgFigures.push(<ImgFigure data={val} ref={'imgFigure' + index}
-				arrange={this.state.imgsArrangeArr[index]} inverse={this.inverse(index)} />);
+			imgFigures.push(<ImgFigure data={val} key={index} ref={'imgFigure' + index}
+				arrange={this.state.imgsArrangeArr[index]}
+				inverse={this.inverse(index)} center={this.center(index)} />);
+			controllerUnits.push(<ControllerUnit key={index} arrange={this.state.imgsArrangeArr[index]}
+			inverse={this.inverse(index)} center={this.center(index)} />);
 		}.bind(this));
 
     return (
